@@ -1,38 +1,87 @@
 const mongoose = require("mongoose");
+const bcrypt = require("bcrypt");
 
-const UserSchema = mongoose.Schema({
-    name: String,
-    email: String,
-    password: String,
-    avatar: String,
-    //create a field of role with default as user
+const UserSchema = new mongoose.Schema({
+    name: {
+        type: String,
+        required: true
+    },
+    email: {
+        type: String,
+        unique: true,
+        required: true,
+        match: [
+            /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/,
+            'Please fill a valid email address'
+        ]
+    },
+    password: {
+        type: String,
+        required: true
+    },
+    avatar: {
+        type: String,
+        default: "https://example.com/path-to-default-avatar.png",
+        required: true
+    },
     role: {
         type: String,
         default: "user"
-    }
-    
-},{
-    timestamps:true
+    },
+    phone: {
+        type: String,
+        match: [/^\d{10}$/, 'Please fill a valid phone number']
+    },
+    address: {
+        street: { type: String },
+        city: { type: String },
+        state: { type: String },
+        zip: { type: String }
+    },
+    dateOfBirth: {
+        type: Date
+    },
+    status: {
+        type: String,
+        enum: ['active', 'inactive', 'banned'],
+        default: 'active'
+    },
+    resetPasswordToken: String,
+    resetPasswordExpires: Date,
+    subscriptionPlan: {
+        type: String,
+        enum: ['free', 'basic', 'premium'],
+        default: 'free'
+    },
+    preferences: {
+        type: Map,
+        of: String,
+        default: {}
+    },
+    is2FAEnabled: {
+        type: Boolean,
+        default: false
+    },
+    twoFactorSecret: String
+}, {
+    timestamps: true
 });
-
 
 UserSchema.pre("save", async function (next) {
     const user = this;
-    // Only hash the password if it's modified
-    if (!user.isModified('password')){
+    if (!user.isModified('password')) {
         return next();
     }
     try {
         const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(user.password, salt);
-        user.password = hashedPassword;
+        user.password = await bcrypt.hash(user.password, salt);
         next();
-    }catch (error) {
+    } catch (error) {
         return next(error);
     }
 });
 
-UserSchema.methods.isPasswordMatched = async function (enteredPassword){
+UserSchema.methods.isPasswordMatched = async function (enteredPassword) {
     if (!this.password) {
         throw new Error("Password is not defined");
     }

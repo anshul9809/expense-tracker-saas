@@ -6,6 +6,7 @@ const crypto = require("crypto");
 const sendEmail = require("../utils/sendEmail");
 const {generateToken} = require("../config/jwtToken"); 
 const cloudinary = require("cloudinary").v2;
+const { validateMongoDbId } = require("../utils/validateMongoDbId");
 // Generate Token
 
 
@@ -141,6 +142,7 @@ const logout = expressAsyncHandler(async (req, res) => {
 
 // Get User Profile
 const getUserProfile = expressAsyncHandler(async (req, res) => {
+    validateMongoDbId(req.user._id);
     const user = await User.findById(req.user._id);
 
     if (!user) {
@@ -169,6 +171,7 @@ const getUserProfile = expressAsyncHandler(async (req, res) => {
 
 // Update User Profile
 const updateUserProfile = expressAsyncHandler(async (req, res) => {
+    validateMongoDbId(req.user._id);
     const user = await User.findById(req.user._id);
     if (!user) {
         res.status(404);
@@ -226,6 +229,7 @@ const updateUserProfile = expressAsyncHandler(async (req, res) => {
 
 // Update Password
 const updatePassword = expressAsyncHandler(async (req, res) => {
+    validateMongoDbId(req.user._id);
     const user = await User.findById(req.user._id);
 
     if (!user) {
@@ -351,7 +355,6 @@ const verifyEmail = expressAsyncHandler(async (req, res) => {
     const verificationToken = req.params.token;
 
     const user = await User.findOne({ verificationToken });
-    console.log("user is ", user);
 
     if (!user) {
         res.status(400);

@@ -8,14 +8,24 @@ module.exports.authMiddleware = expressAsyncHandler(async (req,res, next)=>{
         token = req.headers.authorization.split(" ")[1];
         try{
             if(token){
+                console.log("working till here");
                 const decoded = jwt.verify(token, process.env.JWT_SECRET);
                 const user = await User.findById(decoded?.id);
+                console.log("working till here 2");
+                if(!user){
+                    res.status(401);
+                    throw new Error("User not found");
+                }
+                if(!user.verified){
+                    res.status(401);
+                    throw new Error("Email not verified, Please verify your email");
+                }
                 req.user = user;
                 next();
             }
         }catch(err){
             console.log("session expired ", err);
-            throw new Error("Session expired, Please login again");
+            throw new Error(err?err.message:"Session expired, Please login again");
         }
     }
     else{

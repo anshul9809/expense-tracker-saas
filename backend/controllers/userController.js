@@ -1,67 +1,108 @@
 const expressAsyncHandler = require("express-async-handler");
 const User = require("../models/User");
 const bcrypt = require("bcrypt");
-const {generateToken} = require("../config/jwtToken");
+const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
+const sendEmail = require("../utils/sendEmail");
+const {generateToken} = require("../config/jwtToken"); 
+const cloudinary = require("cloudinary").v2;
+// Generate Token
 
 
-const register = expressAsyncHandler(async (req,res)=>{
-    const {name, email, password} = req.body;
+const sendVerificationEmail = expressAsyncHandler(async (user)=>{
+    const verificationToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "1d" });
 
-    if(!name || !email || !password){
+    // Save verification token to the user record
+    user.verificationToken = verificationToken;
+    await user.save();
+
+    const verificationUrl = `${process.env.CLIENT_URL}/verify-email/${verificationToken}`;
+
+    const message = `Thank you for registering. Please verify your email by clicking the following link: \n\n ${verificationUrl}`;
+
+    await sendEmail({
+        email: user.email,
+        subject: "Email Verification",
+        message,
+    });
+
+});
+
+// Register User
+const register = expressAsyncHandler(async (req, res) => {
+    const { name, email, password, phone, address, dateOfBirth } = req.body;
+
+    if (!name || !email || !password) {
         res.status(400);
         throw new Error("Please add all fields");
     }
 
-    try{
-        const existedUser = await User.findOne({email});
+    try {
+        const existedUser = await User.findOne({ email });
 
-        if(existedUser){
+        if (existedUser) {
             res.status(400);
             throw new Error("User already exists");
         }
+
         const user = await User.create({
             name,
             email,
-            password
+            password,
+            phone,
+            address,
+            dateOfBirth,
         });
-        if(user){
+
+        if (user) {
+            await sendVerificationEmail(user);
+
             res.status(201).json({
                 _id: user._id,
                 name: user.name,
                 email: user.email,
                 role: user.role,
                 token: generateToken(user._id),
-                avatar: user.avatar
+                avatar: user.avatar,
+                phone: user.phone,
+                address: user.address,
+                dateOfBirth: user.dateOfBirth,
+                status: user.status,
+                subscriptionPlan: user.subscriptionPlan,
+                preferences: user.preferences,
+                is2FAEnabled: user.is2FAEnabled,
+                verified: user.verified,
+                message: "Registration successful, please check your email for verification link"
             });
-        }
-        else{
+        } else {
             res.status(400);
             throw new Error("Something went wrong");
         }
-    }
-    catch(err){
+    } catch (err) {
         console.log(err);
         res.status(400);
-        throw new Error(err? err.message: "Something went wrong, please try again");   
+        throw new Error(err ? err.message : "Something went wrong, please try again");
     }
 });
+//tested
 
-const login = expressAsyncHandler(async (req,res)=>{
-    const {email, password} = req.body;
+// Login User
+const login = expressAsyncHandler(async (req, res) => {
+    const { email, password } = req.body;
 
-    if(!email || !password){
+    if (!email || !password) {
         res.status(400);
         throw new Error("Please add all fields");
     }
 
-    const user = await User.findOne({email});
+    const user = await User.findOne({ email });
 
-    if(user && (await user.isPasswordMatched(password))){
-        const token = generateToken(user._id)
-        res.cookie("token", token , {
+    if (user && (await user.isPasswordMatched(password))) {
+        const token = generateToken(user._id);
+        res.cookie("token", token, {
             httpOnly: true,
             sameSite: "none",
-            // secure: true
+            secure: true,
         });
         res.status(200).json({
             _id: user._id,
@@ -69,60 +110,97 @@ const login = expressAsyncHandler(async (req,res)=>{
             email: user.email,
             role: user.role,
             token: token,
-            avatar: user.avatar
+            avatar: user.avatar,
+            phone: user.phone,
+            address: user.address,
+            dateOfBirth: user.dateOfBirth,
+            status: user.status,
+            subscriptionPlan: user.subscriptionPlan,
+            preferences: user.preferences,
+            is2FAEnabled: user.is2FAEnabled,
         });
-    }
-    else{
+    } else {
         res.status(401);
         throw new Error("Invalid email or password");
     }
-
 });
+//tested
 
-const logout = expressAsyncHandler(async (req,res)=>{
+// Logout User
+const logout = expressAsyncHandler(async (req, res) => {
     res.cookie("token", null, {
         httpOnly: true,
         expires: new Date(0),
         sameSite: "none",
-        // secure: true
+        secure: true,
     });
 
-    res.status(200).json({success: true, message: "Logged out successfully"});
-
+    res.status(200).json({ success: true, message: "Logged out successfully" });
 });
+//tested
 
-const getUserProfile = expressAsyncHandler(async (req,res)=>{
-
+// Get User Profile
+const getUserProfile = expressAsyncHandler(async (req, res) => {
     const user = await User.findById(req.user._id);
 
-    if(user){
+    if (!user) {
+        res.status(404);
+        throw new Error("User not found");
+    }
+    else{
         res.status(200).json({
             _id: user._id,
             name: user.name,
             email: user.email,
             role: user.role,
-            avatar: user.avatar
+            avatar: user.avatar,
+            phone: user.phone,
+            address: user.address,
+            dateOfBirth: user.dateOfBirth,
+            status: user.status,
+            subscriptionPlan: user.subscriptionPlan,
+            preferences: user.preferences,
+            verified: user.verified,
+            is2FAEnabled: user.is2FAEnabled,
         });
     }
-    else{
-        res.status(404);
-        throw new Error("User not found");
-    }
-
 });
+//tested
 
-const updateUserProfile = expressAsyncHandler(async (req,res)=>{
-
+// Update User Profile
+const updateUserProfile = expressAsyncHandler(async (req, res) => {
     const user = await User.findById(req.user._id);
-    if(!user){
+    if (!user) {
         res.status(404);
         throw new Error("User not found");
     }
 
     user.name = req.body.name || user.name;
     user.email = req.body.email || user.email;
-    if(req.body.password){
+    user.phone = req.body.phone || user.phone;
+
+    if (req.body.address) {
+        user.address.street = req.body.address.street || user.address.street;
+        user.address.city = req.body.address.city || user.address.city;
+        user.address.state = req.body.address.state || user.address.state;
+        user.address.zipcode = req.body.address.zipcode || user.address.zipcode;
+    }
+
+    user.dateOfBirth = req.body.dateOfBirth || user.dateOfBirth;
+    user.preferences = req.body.preferences || user.preferences;
+
+    if (req.body.password) {
         user.password = req.body.password;
+    }
+
+    if (req.file) {
+        // Delete the old avatar from Cloudinary if it exists
+        if (user.avatarPublicId) {
+            await cloudinary.uploader.destroy(user.avatarPublicId);
+        }
+        // Save the new avatar URL and public ID
+        user.avatar = req.file.path;
+        user.avatarPublicId = req.file.filename;
     }
 
     const updatedUser = await user.save();
@@ -133,30 +211,44 @@ const updateUserProfile = expressAsyncHandler(async (req,res)=>{
         email: updatedUser.email,
         role: updatedUser.role,
         token: generateToken(updatedUser._id),
-        avatar: updatedUser.avatar
+        avatar: updatedUser.avatar,
+        phone: updatedUser.phone,
+        address: updatedUser.address,
+        dateOfBirth: updatedUser.dateOfBirth,
+        status: updatedUser.status,
+        subscriptionPlan: updatedUser.subscriptionPlan,
+        preferences: updatedUser.preferences,
+        is2FAEnabled: updatedUser.is2FAEnabled,
+        message:"Profile Updated"
     });
-
 });
+//tested
 
-const updatePassword = expressAsyncHandler(async (req,res)=>{
-
+// Update Password
+const updatePassword = expressAsyncHandler(async (req, res) => {
     const user = await User.findById(req.user._id);
 
-    if(!user){
+    if (!user) {
         res.status(404);
         throw new Error("User not found");
     }
 
-    if(req.body.password !== req.body.confirmPassword){
+    if (req.body.password !== req.body.confirmPassword) {
         res.status(400);
         throw new Error("Passwords do not match");
     }
 
     const isPasswordMatched = await user.isPasswordMatched(req.body.oldPassword);
 
-    if(!isPasswordMatched){
+    if (!isPasswordMatched) {
         res.status(400);
         throw new Error("Old password is incorrect");
+    }
+    
+    const isPasswordSame = await user.isPasswordMatched(req.body.password);
+    if(isPasswordSame){
+        res.status(400);
+        throw new Error("New password can't be same as old password");
     }
 
     user.password = req.body.password;
@@ -168,10 +260,112 @@ const updatePassword = expressAsyncHandler(async (req,res)=>{
         name: updatedUser.name,
         email: updatedUser.email,
         role: updatedUser.role,
-        token: generateToken(updatedUser._id),
-        avatar: updatedUser.avatar
+        avatar: updatedUser.avatar,
+        phone: updatedUser.phone,
+        address: updatedUser.address,
+        dateOfBirth: updatedUser.dateOfBirth,
+        status: updatedUser.status,
+        subscriptionPlan: updatedUser.subscriptionPlan,
+        preferences: updatedUser.preferences,
+        is2FAEnabled: updatedUser.is2FAEnabled,
+        message:"Password Updated successfully"
     });
-})
+});
+//tested
+
+// Forgot Password
+const forgotPassword = expressAsyncHandler(async (req, res) => {
+    const { email } = req.body;
+    const user = await User.findOne({ email });
+
+    if (!user) {
+        res.status(404);
+        throw new Error("User not found");
+    }
+
+    const resetToken = user.getPasswordResetToken();
+    await user.save();
+
+    const resetUrl = `${process.env.CLIENT_URL}/resetPassword/${resetToken}`;
+
+    const message = `You requested a password reset. Please go to this link to reset your password: \n\n ${resetUrl}`;
+
+    try {
+        await sendEmail({
+            email: user.email,
+            subject: "Password Reset Request",
+            message,
+        });
+
+        res.status(200).json({ success: true, message: "Email sent" });
+    } catch (error) {
+        user.resetPasswordToken = undefined;
+        user.resetPasswordExpires = undefined;
+        await user.save();
+
+        res.status(500);
+        throw new Error("Email could not be sent");
+    }
+});
+//tested
+
+// Reset Password
+const resetPassword = expressAsyncHandler(async (req, res) => {
+    const resetPasswordToken = crypto
+        .createHash("sha256")
+        .update(req.params.token)
+        .digest("hex");
+
+    const user = await User.findOne({
+        resetPasswordToken,
+        resetPasswordExpires: { $gt: Date.now() },
+    });
+
+    if (!user) {
+        res.status(400);
+        throw new Error("Invalid token");
+    }
+
+    if (req.body.password !== req.body.confirmPassword) {
+        res.status(400);
+        throw new Error("Passwords do not match");
+    }
+
+    if(await user.isPasswordMatched(req.body.password)){
+        res.status(400);
+        throw new Error("old and new password can't be same");
+    }
+
+    user.password = req.body.password;
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+
+    await user.save();
+
+    res.status(200).json({ success: true, message: "Password reset successful" });
+});
+//tested
+
+// Email Verification
+const verifyEmail = expressAsyncHandler(async (req, res) => {
+    const verificationToken = req.params.token;
+
+    const user = await User.findOne({ verificationToken });
+    console.log("user is ", user);
+
+    if (!user) {
+        res.status(400);
+        throw new Error("Invalid or expired token");
+    }
+
+    user.verified = true;
+    user.verificationToken = undefined;
+
+    await user.save();
+
+    res.status(200).json({ success: true, message: "Email verified successfully" });
+});
+//tested
 
 
 module.exports = {
@@ -180,5 +374,8 @@ module.exports = {
     logout,
     getUserProfile,
     updateUserProfile,
-    updatePassword
+    updatePassword,
+    forgotPassword,
+    resetPassword,
+    verifyEmail,
 };

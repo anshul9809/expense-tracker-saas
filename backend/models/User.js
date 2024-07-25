@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const bcrypt = require("bcrypt");
+const crypto = require("crypto");
 
 const UserSchema = new mongoose.Schema({
     name: {
@@ -21,8 +22,11 @@ const UserSchema = new mongoose.Schema({
     },
     avatar: {
         type: String,
-        default: "https://example.com/path-to-default-avatar.png",
+        default: "https://res.cloudinary.com/dnu2n1uz0/image/upload/v1721911080/profile_pictures/66a21f318b36454ee92f5eba_1721911079353.png",
         required: true
+    },
+    avatarPublicId: {
+        type: String
     },
     role: {
         type: String,
@@ -36,7 +40,7 @@ const UserSchema = new mongoose.Schema({
         street: { type: String },
         city: { type: String },
         state: { type: String },
-        zip: { type: String }
+        zipcode: { type: String }
     },
     dateOfBirth: {
         type: Date
@@ -62,7 +66,13 @@ const UserSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
-    twoFactorSecret: String
+    twoFactorSecret: String,
+    verified:{
+        type:Boolean,
+        default:false
+    },
+    verificationToken: String,
+    verificationTokenExpires: Date,
 }, {
     timestamps: true
 });
@@ -86,6 +96,13 @@ UserSchema.methods.isPasswordMatched = async function (enteredPassword) {
         throw new Error("Password is not defined");
     }
     return await bcrypt.compare(enteredPassword, this.password);
+}
+
+UserSchema.methods.getPasswordResetToken = function(){
+    const resetToken = crypto.randomBytes(32).toString("hex");
+    this.resetPasswordToken = crypto.createHash("sha256").update(resetToken).digest("hex");
+    this.resetPasswordExpires = Date.now() + 30*60*1000;
+    return resetToken;
 }
 
 module.exports = mongoose.model("User", UserSchema);

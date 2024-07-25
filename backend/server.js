@@ -7,7 +7,7 @@ const path = require("path");
 const bodyParser = require("body-parser");
 const cors = require("cors");
 const morgan = require("morgan");
-const {errorHandler, notFound} = require("./middlewares/errorHandler");
+const { errorHandler, notFound } = require("./middlewares/errorHandler");
 
 const allowedOrigins = [
     "http://localhost:5173",
@@ -30,7 +30,6 @@ app.use("/api/v1", require("./routes/index"));
 
 app.use(notFound);
 app.use(errorHandler);
-
 
 app.listen(PORT, () => {
     console.log("Server started on port ", PORT);

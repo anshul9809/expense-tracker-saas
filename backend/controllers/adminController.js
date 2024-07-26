@@ -6,34 +6,43 @@ const expressAsyncHandler = require("express-async-handler");
 const {validateMongoDbId} = require("../utils/validateMongoDbId");
 
 //functions for admin profile
-const login = expressAsyncHandler(async (req,res)=>{
-    const {email, password} = req.body;
-    const user = await User.findOne({email});
-    if(user && (await bcrypt.compare(password, user.password))){
-        if(user.role !== "admin"){
-            res.status(401);
-            throw new Error("Not authorized as an admin");
-        }
-        const token = jwt.sign({id: user._id}, process.env.JWT_SECRET, {expiresIn: "1d"});
-        res.cookie("token", token, {
-            httpOnly: true,
-            sameSite: "none",
-            secure: true
-        });
-        const {password, ...others} = user._doc;
-        res.status(200).json({...others});
-    }
-    else{
-        res.status(401);
+const login = expressAsyncHandler(async (req, res) => {
+    const { email, password } = req.body;
+    const user = await User.findOne({ email });
+
+    if (!user) {
+        res.status(401);// Unauthorized
         throw new Error("Invalid email or password");
     }
+
+    const isPasswordMatched = await user.isPasswordMatched(password);
+    if (!isPasswordMatched) {
+        res.status(401); // Unauthorized
+        throw new Error("Invalid email or password");
+    }
+
+    if (user.role !== "admin") {
+        res.status(403); // Forbidden
+        throw new Error("Not authorized as an admin");
+    }
+
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "1d" });
+    res.cookie("token", token, {
+        httpOnly: true,
+        sameSite: "none",
+        secure: true
+    });
+
+    const { password: _, ...others } = user._doc; // Omit password from response
+    res.status(200).json(others);
 });
+
 
 const getAdminProfile = expressAsyncHandler(async (req,res)=>{
     validateMongoDbId(req.user._id);
     const user = await User.findById(req.user._id);
     if(user){
-        res.json(user);
+        res.status(200).json(user);
     }
     else{
         res.status(404);
@@ -106,7 +115,7 @@ const logout = expressAsyncHandler(async (req,res)=>{
 //admin rights functionality
 const getAllUsers = expressAsyncHandler(async (req,res)=>{
     const users = await User.find();
-    res.json(users);
+    res.status(200).json(users);
 });
 
 const getUser = expressAsyncHandler(async (req,res)=>{
@@ -114,7 +123,7 @@ const getUser = expressAsyncHandler(async (req,res)=>{
     validateMongoDbId(id);
     const user = await User.findById(id);
     if(user){
-        res.json(user);
+        res.status(200).json(user);
     }
     else{
         res.status(404);
@@ -129,7 +138,7 @@ const changeUserStatus = expressAsyncHandler(async (req,res)=>{
     if(user){
         user.status = req.body.status;
         await user.save();
-        res.json(user);
+        res.status(200).json(user);
     }
     else{
         res.status(404);
@@ -142,7 +151,7 @@ const deleteUser = expressAsyncHandler(async (req,res)=>{
     validateMongoDbId(id);
     const user = await User.findByIdAndDelete(id);
     if(user){
-        res.json(user);
+        res.status(200).json(user);
     }
     else{
         res.status(404);
@@ -163,5 +172,4 @@ module.exports = {
     getAdminProfile,
     changeUserStatus,
     deleteUser
-    
 }

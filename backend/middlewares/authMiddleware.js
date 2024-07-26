@@ -2,41 +2,39 @@ const User = require("../models/User");
 const jwt = require("jsonwebtoken");
 const expressAsyncHandler = require("express-async-handler");
 
-module.exports.authMiddleware = expressAsyncHandler(async (req,res, next)=>{
+module.exports.authMiddleware = expressAsyncHandler(async (req, res, next) => {
     let token;
-    if(req?.headers?.authorization?.startsWith("Bearer")){
+    if (req?.headers?.authorization?.startsWith("Bearer")) {
         token = req.headers.authorization.split(" ")[1];
-        try{
-            if(token){
-                console.log("working till here");
+        try {
+            if (token) {
                 const decoded = jwt.verify(token, process.env.JWT_SECRET);
                 const user = await User.findById(decoded?.id);
-                console.log("working till here 2");
-                if(!user){
-                    res.status(401);
+                if (!user) {
+                    res.status(404);
                     throw new Error("User not found");
                 }
-                if(!user.verified){
+                if (!user.verified) {
                     res.status(401);
                     throw new Error("Email not verified, Please verify your email");
                 }
                 req.user = user;
                 next();
             }
-        }catch(err){
-            console.log("session expired ", err);
-            throw new Error(err?err.message:"Session expired, Please login again");
+        } catch (err) {
+            res.status(401);
+            throw new Error(err ? err.message : "Session expired, Please login again");
         }
-    }
-    else{
+    } else {
+        res.status(401);
         throw new Error("There's no token attached");
     }
 });
 
-
 module.exports.isAdmin = expressAsyncHandler(async (req,res, next)=>{
-    if(req.user.role === "admin") return next();  //if the user is admin then allow him to proceed
+    if(req.user.role === "admin") return next();  
     else{
+        res.status(401);
         throw new Error("You are not an admin");
     }
 });

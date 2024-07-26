@@ -96,6 +96,7 @@ UserSchema.methods.isPasswordMatched = async function (enteredPassword) {
         throw new Error("Password is not defined");
     }
     return await bcrypt.compare(enteredPassword, this.password);
+    
 }
 
 UserSchema.methods.getPasswordResetToken = function(){

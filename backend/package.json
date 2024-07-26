@@ -5,10 +5,12 @@
   "main": "server.js",
   "scripts": {
     "test": "jest",
+    "test:admin": "jest tests/adminController.test.js",
+    "test:user": "jest tests/userController.test.js",
     "start": "node server.js"
   },
   "repository": {
-    "type": "git",
+    "type": "git",  
     "url": "git+https://github.com/anshul9809/expense-tracker-saas.git"
   },
   "keywords": [

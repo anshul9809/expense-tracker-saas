@@ -97,6 +97,8 @@ UserSchema.methods.isPasswordMatched = async function (enteredPassword) {
     }
     return await bcrypt.compare(enteredPassword, this.password);
     
+    
+    
 }
 
 UserSchema.methods.getPasswordResetToken = function(){

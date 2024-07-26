@@ -33,7 +33,7 @@ const login = expressAsyncHandler(async (req, res) => {
         secure: true
     });
 
-    const { password: _, ...others } = user._doc; // Omit password from response
+    const { password: _, ...others} = user._doc; // Omit password from response
     res.status(200).json(others);
 });
 

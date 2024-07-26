@@ -31,14 +31,16 @@ const sendVerificationEmail = expressAsyncHandler(async (user)=>{
 
 // Register User
 const register = expressAsyncHandler(async (req, res) => {
-    const { name, email, password, phone, address, dateOfBirth } = req.body;
+    const { name, email, password} = req.body;
 
+    // Ensure all required fields are provided
     if (!name || !email || !password) {
         res.status(400);
-        throw new Error("Please add all fields");
+        throw new Error("Please add all required fields");
     }
 
     try {
+        // Check if user already exists
         const existedUser = await User.findOne({ email });
 
         if (existedUser) {
@@ -46,24 +48,20 @@ const register = expressAsyncHandler(async (req, res) => {
             throw new Error("User already exists");
         }
 
-        const user = await User.create({
-            name,
-            email,
-            password,
-            phone,
-            address,
-            dateOfBirth,
-        });
+        // Create a new user
+        const user = await User.create(req.body);
 
+        // If user creation is successful, send verification email
         if (user) {
             await sendVerificationEmail(user);
+            const token = await generateToken(user._id);
 
             res.status(201).json({
                 _id: user._id,
                 name: user.name,
                 email: user.email,
                 role: user.role,
-                token: generateToken(user._id),
+                token: token,
                 avatar: user.avatar,
                 phone: user.phone,
                 address: user.address,
@@ -77,10 +75,9 @@ const register = expressAsyncHandler(async (req, res) => {
             });
         } else {
             res.status(400);
-            throw new Error("Something went wrong");
+            throw new Error("Something went wrong during user creation");
         }
     } catch (err) {
-        console.log(err);
         res.status(400);
         throw new Error(err ? err.message : "Something went wrong, please try again");
     }
@@ -99,7 +96,7 @@ const login = expressAsyncHandler(async (req, res) => {
     const user = await User.findOne({ email });
 
     if (user && (await user.isPasswordMatched(password))) {
-        const token = generateToken(user._id);
+        const token = await generateToken(user._id);
         res.cookie("token", token, {
             httpOnly: true,
             sameSite: "none",
@@ -236,29 +233,29 @@ const updatePassword = expressAsyncHandler(async (req, res) => {
         res.status(404);
         throw new Error("User not found");
     }
-
+    
     if (req.body.password !== req.body.confirmPassword) {
-        res.status(400);
+        res.status(401);
         throw new Error("Passwords do not match");
     }
-
+    
     const isPasswordMatched = await user.isPasswordMatched(req.body.oldPassword);
-
+    
     if (!isPasswordMatched) {
-        res.status(400);
+        res.status(402);
         throw new Error("Old password is incorrect");
     }
     
     const isPasswordSame = await user.isPasswordMatched(req.body.password);
     if(isPasswordSame){
-        res.status(400);
+        res.status(403);
         throw new Error("New password can't be same as old password");
     }
-
+    
     user.password = req.body.password;
-
+    
     const updatedUser = await user.save();
-
+    
     res.status(200).json({
         _id: updatedUser._id,
         name: updatedUser.name,
@@ -319,31 +316,30 @@ const resetPassword = expressAsyncHandler(async (req, res) => {
         .createHash("sha256")
         .update(req.params.token)
         .digest("hex");
-
     const user = await User.findOne({
         resetPasswordToken,
         resetPasswordExpires: { $gt: Date.now() },
     });
-
+    const {password} = req.body;
     if (!user) {
-        res.status(400);
+        res.status(400);        
         throw new Error("Invalid token");
     }
 
-    if (req.body.password !== req.body.confirmPassword) {
+    if (password !== req.body.confirmPassword) {
         res.status(400);
         throw new Error("Passwords do not match");
     }
-
-    if(await user.isPasswordMatched(req.body.password)){
+    const passwordSameAsOld = await user.isPasswordMatched(password);
+    if(passwordSameAsOld){
         res.status(400);
         throw new Error("old and new password can't be same");
     }
-
-    user.password = req.body.password;
+    
+    user.password = password;
     user.resetPasswordToken = undefined;
     user.resetPasswordExpires = undefined;
-
+    
     await user.save();
 
     res.status(200).json({ success: true, message: "Password reset successful" });

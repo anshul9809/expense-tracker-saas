@@ -1,16 +1,17 @@
 const request = require('supertest');
-const app = require('../server'); // Adjust the path to your app
+const express = require("express");
+const app = express(); // Adjust the path to your app
 const mongoose = require('mongoose');
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const bcrypt = require("bcrypt");
 
+app.use(express.json());
+app.use("/api/v1/admin", require("../routes/adminRoutes"));
+
 beforeAll(async () => {
     // Connect to the in-memory MongoDB server
-    await mongoose.connect(`${process.env.MONGO_URL}`, {
-        useNewUrlParser: true,
-        useUnifiedTopology: true,
-    });
+    await mongoose.connect(`${process.env.TEST_DB_URL}`);
 });
 
 afterAll(async () => {
@@ -45,7 +46,6 @@ describe('Admin Routes', () => {
         });
         userToken = jwt.sign({ id: regularUser._id }, process.env.JWT_SECRET, { expiresIn: '1d' });
         userId = regularUser._id;
-        console.log("regular user id is ", userId);
     });
 
     afterAll(async () => {

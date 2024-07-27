@@ -57,11 +57,6 @@ const UserSchema = new mongoose.Schema({
         enum: ['free', 'basic', 'premium'],
         default: 'free'
     },
-    preferences: {
-        type: Map,
-        of: String,
-        default: {}
-    },
     is2FAEnabled: {
         type: Boolean,
         default: false
@@ -73,6 +68,31 @@ const UserSchema = new mongoose.Schema({
     },
     verificationToken: String,
     verificationTokenExpires: Date,
+    incomes:[{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Income",
+    }],
+    expenses:[{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Expense",
+    }],
+    totalIncome: {
+        type: Number,
+        default: 0
+    },
+    totalExpense: {
+        type: Number,
+        default: 0
+    },
+    totalBalance: {
+        type: Number,
+        default: 0
+    },
+    totalSavings: {
+        type: Number,
+        default: 0
+    }
+
 }, {
     timestamps: true
 });

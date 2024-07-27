@@ -18,6 +18,10 @@ afterAll(async () => {
     await mongoose.connection.close();
 });
 
+afterEach(async () => {
+    await User.deleteMany();
+});
+
 
 describe("User Controller Tests", () => {
     let token;

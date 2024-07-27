@@ -38,3 +38,13 @@ module.exports.isAdmin = expressAsyncHandler(async (req,res, next)=>{
         throw new Error("You are not an admin");
     }
 });
+
+module.exports.checkBanned = expressAsyncHandler(async (req,res,next)=>{
+    if(req.user.status === "banned"){
+        res.status(403);
+        throw new Error("Your account is banned.");
+    }
+    else {
+        next();
+    }
+});

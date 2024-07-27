@@ -13,7 +13,7 @@ const IncomeSchema = mongoose.Schema({
     category:{
         type:String,
         required:true,
-        enum:["Salary", "Freelancing", "Investments", "Gifts", "Other"]
+        default:"Other"
     },
     date:{
         type:Date,

@@ -8,6 +8,7 @@
     "test:admin": "jest tests/adminController.test.js",
     "test:user": "jest tests/userController.test.js",
     "test:income":"jest tests/incomeController.test.js",
+    "test:expense":"jest tests/expenseController.test.js",
     "start": "node server.js"
   },
   "repository": {

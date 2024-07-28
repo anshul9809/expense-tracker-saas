@@ -56,7 +56,6 @@ const createExpense = expressAsyncHandler(async (req, res) => {
     });
 });
 
-
 const updateExpense = expressAsyncHandler(async (req, res) => {
     const { title, amount, category, description, date } = req.body;
     const { id } = req.params;
@@ -125,18 +124,15 @@ const updateExpense = expressAsyncHandler(async (req, res) => {
 const deleteExpense = expressAsyncHandler(async (req,res)=>{
     const id = req.params.id;
     validateMongoDbId(id);
-    console.log("yahan aaya");
     const expense = await Expense.findById(id);
     if (!expense) { 
         res.status(404);
         throw new Error("Expense not found");
     }
-    console.log("yahan aaya 2");
     if (expense.user.toString() !== req.user._id.toString()) {
         res.status(403);
         throw new Error("Not authorized to delete this expense");
     }
-    console.log("yahan aaya 3");
     // remove the expense from user model and update the balances
     const user = await User.findById(req.user._id);
     user.expenses.pull(expense._id);

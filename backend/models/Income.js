@@ -1,5 +1,5 @@
 const mongoose = require("mongoose");
-const IncomeSchema = mongoose.Schema({
+const IncomeSchema = new mongoose.Schema({
     title:{
         type:String,
         trim:true,

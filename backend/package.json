@@ -7,12 +7,12 @@
     "test": "jest",
     "test:admin": "jest tests/adminController.test.js",
     "test:user": "jest tests/userController.test.js",
-    "test:income":"jest tests/incomeController.test.js",
-    "test:expense":"jest tests/expenseController.test.js",
+    "test:income": "jest tests/incomeController.test.js",
+    "test:expense": "jest tests/expenseController.test.js",
     "start": "node server.js"
   },
   "repository": {
-    "type": "git",  
+    "type": "git",
     "url": "git+https://github.com/anshul9809/expense-tracker-saas.git"
   },
   "keywords": [
@@ -39,6 +39,7 @@
     "morgan": "^1.10.0",
     "multer": "^1.4.5-lts.1",
     "multer-storage-cloudinary": "^4.0.0",
+    "node-cron": "^3.0.3",
     "nodemailer": "^6.9.14",
     "passport": "^0.7.0"
   },

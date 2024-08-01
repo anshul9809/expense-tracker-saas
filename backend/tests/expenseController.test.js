@@ -4,7 +4,7 @@ const mongoose = require('mongoose');
 const app = express();
 const User = require('../models/User');
 const Expense = require('../models/Expense');
-const {errorHandler, notFound} = require("../middlewares/errorHandler");
+const { errorHandler, notFound } = require("../middlewares/errorHandler");
 
 // Middleware and routes
 app.use(express.json());
@@ -14,10 +14,7 @@ app.use(notFound);
 
 // Setup and teardown
 beforeAll(async () => {
-    await mongoose.connect(process.env.TEST_DB_URL, {
-        useNewUrlParser: true,
-        useUnifiedTopology: true,
-    });
+    await mongoose.connect(process.env.TEST_DB_URL);
 });
 
 afterEach(async () => {
@@ -72,6 +69,22 @@ describe("Expense API Endpoints", () => {
             expect(response.status).toBe(201);
             expect(response.body.success).toBe(true);
             expect(response.body.expense.title).toBe("Dinner");
+        });
+
+        it("should create a recurring expense successfully", async () => {
+            const response = await request(app)
+                .post("/api/v1/expense/create")
+                .set("Authorization", `Bearer ${token}`)
+                .send({
+                    title: "Subscription",
+                    amount: 20,
+                    category: "Entertainment",
+                    description: "Monthly subscription",
+                    recurrenceInterval: "monthly"
+                });
+            expect(response.status).toBe(201);
+            expect(response.body.success).toBe(true);
+            expect(response.body.expense.title).toBe("Subscription");
         });
 
         it("should not create an expense with insufficient balance", async () => {

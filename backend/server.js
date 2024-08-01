@@ -25,7 +25,7 @@ app.use(morgan("dev"));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 
-
+require("./utils/scheduler");
 app.use("/api/v1", require("./routes/index"));
 
 app.use(notFound);

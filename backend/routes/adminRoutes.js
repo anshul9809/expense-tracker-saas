@@ -14,7 +14,8 @@ const {
     deleteSubscriptionPlan,
     getAllSubscriptionPlans,
     getSingleSubscriptionPlan,
-    getUsersBySubscriptionPlans
+    getUsersBySubscriptionPlans,
+    getUserCsvReport
 } = require("../controllers/adminController");
 const { authMiddleware, isAdmin } = require("../middlewares/authMiddleware");
 const {upload} = require("../config/cloudinary");
@@ -33,5 +34,6 @@ router.delete("/subscription/:id", authMiddleware, isAdmin, deleteSubscriptionPl
 router.get("/subscription/:id", authMiddleware, isAdmin, getSingleSubscriptionPlan);
 router.get("/subscription", authMiddleware, isAdmin, getAllSubscriptionPlans);
 router.get("/subscriptionUsers/:planId", authMiddleware, isAdmin, getUsersBySubscriptionPlans);
+router.get("/getUserReport", authMiddleware, isAdmin, getUserCsvReport)
 
 module.exports = router;

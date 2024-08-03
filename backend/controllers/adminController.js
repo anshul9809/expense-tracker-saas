@@ -5,6 +5,9 @@ const crypto = require("crypto");
 const expressAsyncHandler = require("express-async-handler");
 const SubscriptionPlan = require("../models/SubscriptionPlan");
 const {validateMongoDbId} = require("../utils/validateMongoDbId");
+const {parse} = require("json2csv");
+const path = require("path");
+const fs = require("fs");
 
 //functions for admin profile
 const login = expressAsyncHandler(async (req, res) => {
@@ -247,7 +250,33 @@ const getUsersBySubscriptionPlans = expressAsyncHandler(async (req,res)=>{
     }
 });
 
-// const = expressAsyncHandler(async (req,res)=>{});
+const getUserCsvReport = expressAsyncHandler(async (req,res)=>{
+    try{
+        const users = await User.find().populate("subscriptionPlan").exec();
+        const userData = users.map((user)=>({
+            name: user.name,
+            email:user.email,
+            phone: user.phone,
+            address: `${user.address.street}, ${user.address.city}, ${user.address.state} ${user.address.zipcode}`,
+            dateOfBirth: user.dateOfBirth ? user.dateOfBirth.toISOString().split('T')[0] : '',
+            status: user.status,
+            subscriptionPlan: user.subscriptionPlan ? user.subscriptionPlan.name : 'Free',
+            totalIncome: user.totalIncome,
+            totalExpense: user.totalExpense,
+            totalBalance: user.totalBalance,
+            totalSavings: user.totalSavings,
+        }));
+        const csv = parse(userData);
+
+        res.header('Content-Type', 'text/csv');
+        res.header('Content-Disposition', 'attachment; filename=user_report.csv');
+        res.send(csv);
+        
+    }catch(err){
+        res.status(500);
+        throw new Error("Unable to turn data into csv");   
+    }
+});
 
 module.exports = {
     getAllUsers,
@@ -263,5 +292,6 @@ module.exports = {
     deleteSubscriptionPlan,
     getAllSubscriptionPlans,
     getSingleSubscriptionPlan,
-    getUsersBySubscriptionPlans
+    getUsersBySubscriptionPlans,
+    getUserCsvReport
 }

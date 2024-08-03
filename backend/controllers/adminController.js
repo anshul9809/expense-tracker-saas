@@ -271,10 +271,10 @@ const getUserCsvReport = expressAsyncHandler(async (req,res)=>{
         res.header('Content-Type', 'text/csv');
         res.header('Content-Disposition', 'attachment; filename=user_report.csv');
         res.send(csv);
-        
+
     }catch(err){
         res.status(500);
-        throw new Error("Unable to turn data into csv");   
+        throw new Error("Unable to turn data into csv ", err.message);   
     }
 });
 

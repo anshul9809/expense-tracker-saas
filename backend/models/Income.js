@@ -27,6 +27,18 @@ const IncomeSchema = new mongoose.Schema({
     description:{
         type:String,
         maxlength:500
+    },
+    isRecurring:{
+        type:Boolean,
+        default:false
+    },
+    recurrenceInterval:{
+        type:String,
+        enum: ["daily", "weekly", "monthly"],
+        default: "monthly"
+    },
+    nextOccurrenceDate: {
+        type: Date
     }
 
 }, {

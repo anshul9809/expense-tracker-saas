@@ -1,21 +1,19 @@
 const request = require('supertest');
 const express = require("express");
-const app = express(); // Adjust the path to your app
 const mongoose = require('mongoose');
-const User = require('../models/User');
 const jwt = require('jsonwebtoken');
-const bcrypt = require("bcrypt");
+const User = require('../models/User');
+const SubscriptionPlan = require('../models/SubscriptionPlan');
 
+const app = express();
 app.use(express.json());
 app.use("/api/v1/admin", require("../routes/adminRoutes"));
 
 beforeAll(async () => {
-    // Connect to the in-memory MongoDB server
-    await mongoose.connect(`${process.env.TEST_DB_URL}`);
+    await mongoose.connect(process.env.TEST_DB_URL);
 });
 
 afterAll(async () => {
-    // Close the MongoDB connection
     await mongoose.connection.close();
 });
 
@@ -23,34 +21,40 @@ describe('Admin Routes', () => {
     let adminToken;
     let userToken;
     let userId;
+    let subscriptionPlanId;
 
     beforeAll(async () => {
-        // Create a test admin user and generate a token
-        
         const adminUser = await User.create({
             name: 'Admin',
             email: 'admin@example.com',
-            password: "password",
+            password: 'password',
             role: 'admin',
-            verified:true
+            verified: true
         });
         adminToken = jwt.sign({ id: adminUser._id }, process.env.JWT_SECRET, { expiresIn: '1d' });
 
-        // Create a test regular user and generate a token
         const regularUser = await User.create({
             name: 'User',
             email: 'user@example.com',
-            password: "password",
+            password: 'password',
             role: 'user',
-            verified:true
+            verified: true
         });
         userToken = jwt.sign({ id: regularUser._id }, process.env.JWT_SECRET, { expiresIn: '1d' });
         userId = regularUser._id;
+
+        const subscriptionPlan = await SubscriptionPlan.create({
+            planName: 'basic',
+            description: 'Basic subscription plan',
+            price: 9.99,
+            duration: 'monthly'
+        });
+        subscriptionPlanId = subscriptionPlan._id;
     });
 
     afterAll(async () => {
-        // Cleanup: remove the test users
         await User.deleteMany({});
+        await SubscriptionPlan.deleteMany({});
     });
 
     it('should log in as admin', async () => {
@@ -116,5 +120,70 @@ describe('Admin Routes', () => {
             .get('/api/v1/admin/allUsers')
             .set('Authorization', `Bearer ${userToken}`);
         expect(response.status).toBe(401);
+    });
+
+    it('should create a subscription plan', async () => {
+        const response = await request(app)
+            .post('/api/v1/admin/createSubscription')
+            .set('Authorization', `Bearer ${adminToken}`)
+            .send({
+                planName: 'premium',
+                description: 'Premium subscription plan',
+                price: 19.99,
+                duration: 'yearly'
+            });
+        expect(response.status).toBe(200);
+        expect(response.body.subscriptionPlan.planName).toBe('premium');
+    });
+
+    it('should update a subscription plan', async () => {
+        const response = await request(app)
+            .put(`/api/v1/admin/subscription/${subscriptionPlanId}`)
+            .set('Authorization', `Bearer ${adminToken}`)
+            .send({
+                description: 'Updated description',
+                price: 14.99
+            });
+        expect(response.status).toBe(200);
+        expect(response.body.subscriptionPlan.description).toBe('Updated description');
+        expect(response.body.subscriptionPlan.price).toBe(14.99);
+    });
+
+    it('should delete a subscription plan', async () => {
+        const response = await request(app)
+            .delete(`/api/v1/admin/subscription/${subscriptionPlanId}`)
+            .set('Authorization', `Bearer ${adminToken}`);
+        expect(response.status).toBe(200);
+        expect(response.body.message).toBe('Plan deleted');
+    });
+
+    it('should get all subscription plans', async () => {
+        const response = await request(app)
+            .get('/api/v1/admin/subscription')
+            .set('Authorization', `Bearer ${adminToken}`);
+        expect(response.status).toBe(200);
+        expect(response.body.length).toBeGreaterThan(0);
+    });
+
+    it('should get a single subscription plan by id', async () => {
+        const newSubscriptionPlan = await SubscriptionPlan.create({
+            planName: 'basic',
+            description: 'basic subscription plan',
+            price: 12.99,
+            duration: 'monthly'
+        });
+        const response = await request(app)
+            .get(`/api/v1/admin/subscription/${newSubscriptionPlan._id}`)
+            .set('Authorization', `Bearer ${adminToken}`);
+        expect(response.status).toBe(200);
+        expect(response.body.planName).toBe('basic');
+    });
+
+    it('should handle not found subscription plan', async () => {
+        const invalidId = new mongoose.Types.ObjectId();
+        const response = await request(app)
+            .get(`/api/v1/admin/subscription/${invalidId}`)
+            .set('Authorization', `Bearer ${adminToken}`);
+        expect(response.status).toBe(404);
     });
 });

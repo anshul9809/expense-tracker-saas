@@ -3,6 +3,7 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const expressAsyncHandler = require("express-async-handler");
+const SubscriptionPlan = require("../models/SubscriptionPlan");
 const {validateMongoDbId} = require("../utils/validateMongoDbId");
 
 //functions for admin profile
@@ -36,7 +37,6 @@ const login = expressAsyncHandler(async (req, res) => {
     const { password: _, ...others} = user._doc; // Omit password from response
     res.status(200).json(others);
 });
-
 
 const getAdminProfile = expressAsyncHandler(async (req,res)=>{
     validateMongoDbId(req.user._id);
@@ -159,9 +159,95 @@ const deleteUser = expressAsyncHandler(async (req,res)=>{
     }
 });
 
+//admin functionality for creating the plans
+const createSubscriptionPlan = expressAsyncHandler(async (req,res)=>{
+    const subscriptionPlan = await SubscriptionPlan.create(req.body);
+    res.status(200).json({
+        success:true,
+        message: "Plan created",
+        subscriptionPlan
+    });
+});
 
+const updateSubscriptionPlan = expressAsyncHandler(async (req,res)=>{
+    const {id} = req.params;
+    validateMongoDbId(id);
+    const subscriptionPlan = await SubscriptionPlan.findByIdAndUpdate(id, req.body, {new:true});
+    res.status(200).json({
+        success:true,
+        message: "Plan updated",
+        subscriptionPlan
+    });
+});
 
+const deleteSubscriptionPlan = expressAsyncHandler(async (req,res)=>{
+    const { id } = req.params;
+    validateMongoDbId(id);
+    const subscriptionPlan = await SubscriptionPlan.findById(id);
+    if (!subscriptionPlan) {
+        res.status(404);
+        throw new Error("Plan not found");
+    }
+    // Find the "free" subscription plan ID
+    let freeSubscriptionPlan = await SubscriptionPlan.findOne({ name: 'free' });
+    if (!freeSubscriptionPlan) {
+        freeSubscriptionPlan = new SubscriptionPlan({ planName: 'free', price: 0, duration: "yearly", description: "this is ddescription" });
+        await freeSubscriptionPlan.save();
+    }
+    await User.updateMany(
+        { subscriptionPlan: id },
+        { $set: { subscriptionPlan: freeSubscriptionPlan._id } }
+    );
+    await SubscriptionPlan.findByIdAndDelete(id);
+    res.status(200).json({
+        success: true,
+        message: "Plan deleted",
+        subscriptionPlan
+    });
+});
 
+const getAllSubscriptionPlans = expressAsyncHandler(async (req,res)=>{
+    const subscriptionPlans = await SubscriptionPlan.find();
+    res.status(200).json(subscriptionPlans);
+});
+
+const getSingleSubscriptionPlan = expressAsyncHandler(async (req,res)=>{
+    const {id} = req.params;
+    validateMongoDbId(id);
+    const subscriptionPlan = await SubscriptionPlan.findById(id);
+    if(subscriptionPlan){
+        res.status(200).json(subscriptionPlan);
+    }
+    else{
+        res.status(404);
+        throw new Error("Plan not found");
+    }
+});
+
+const getUsersBySubscriptionPlans = expressAsyncHandler(async (req,res)=>{
+    const {planId} = req.params;
+    validateMongoDbId(planId);
+    console.log("ye chla")
+    const subscriptionPlan = await SubscriptionPlan.findById(planId);
+    if(subscriptionPlan){
+        const users = await User.find({subscriptionPlan:planId});
+        if(users.length === 0){
+            console.log("ye chla bhai");
+            res.status(404);
+            throw new Error("No users found for plan");
+        }
+        else{
+            console.log("ye wala chla");
+            res.status(200).json(users);
+        }
+    }
+    else{
+        res.status(404);
+        throw new Error("Plan not found");
+    }
+});
+
+// const = expressAsyncHandler(async (req,res)=>{});
 
 module.exports = {
     getAllUsers,
@@ -171,5 +257,11 @@ module.exports = {
     updateAdminProfile,
     getAdminProfile,
     changeUserStatus,
-    deleteUser
+    deleteUser,
+    createSubscriptionPlan,
+    updateSubscriptionPlan,
+    deleteSubscriptionPlan,
+    getAllSubscriptionPlans,
+    getSingleSubscriptionPlan,
+    getUsersBySubscriptionPlans
 }

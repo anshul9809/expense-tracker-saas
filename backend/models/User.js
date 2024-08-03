@@ -53,26 +53,26 @@ const UserSchema = new mongoose.Schema({
     resetPasswordToken: String,
     resetPasswordExpires: Date,
     subscriptionPlan: {
-        type: String,
-        enum: ['free', 'basic', 'premium'],
-        default: 'free'
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Subscription",
+        default: null // Default to null if the user doesn't have a subscription
     },
     is2FAEnabled: {
         type: Boolean,
         default: false
     },
     twoFactorSecret: String,
-    verified:{
-        type:Boolean,
-        default:false
+    verified: {
+        type: Boolean,
+        default: false
     },
     verificationToken: String,
     verificationTokenExpires: Date,
-    incomes:[{
+    incomes: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: "Income",
     }],
-    expenses:[{
+    expenses: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: "Expense",
     }],
@@ -116,15 +116,12 @@ UserSchema.methods.isPasswordMatched = async function (enteredPassword) {
         throw new Error("Password is not defined");
     }
     return await bcrypt.compare(enteredPassword, this.password);
-    
-    
-    
 }
 
-UserSchema.methods.getPasswordResetToken = function(){
+UserSchema.methods.getPasswordResetToken = function () {
     const resetToken = crypto.randomBytes(32).toString("hex");
     this.resetPasswordToken = crypto.createHash("sha256").update(resetToken).digest("hex");
-    this.resetPasswordExpires = Date.now() + 30*60*1000;
+    this.resetPasswordExpires = Date.now() + 30 * 60 * 1000;
     return resetToken;
 }
 

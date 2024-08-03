@@ -140,7 +140,7 @@ const logout = expressAsyncHandler(async (req, res) => {
 // Get User Profile
 const getUserProfile = expressAsyncHandler(async (req, res) => {
     validateMongoDbId(req.user._id);
-    const user = await User.findById(req.user._id);
+    const user = await User.findById(req.user._id).pouplate("subscriptionPlan");
 
     if (!user) {
         res.status(404);
@@ -169,7 +169,7 @@ const getUserProfile = expressAsyncHandler(async (req, res) => {
 // Update User Profile
 const updateUserProfile = expressAsyncHandler(async (req, res) => {
     validateMongoDbId(req.user._id);
-    const user = await User.findById(req.user._id);
+    const user = await User.findById(req.user._id).populate("subscriptionPlan");
     if (!user) {
         res.status(404);
         throw new Error("User not found");

@@ -6,5 +6,6 @@ router.use("/users", require("./userRoutes"));
 router.use("/admin", require("./adminRoutes"));
 router.use("/expense", authMiddleware, checkBanned, require("./expenseRoutes"));
 router.use("/income", authMiddleware, checkBanned, require("./incomeRoutes"));
+router.use("/subscriptions", require("./subscriptionRoutes"));
 
 module.exports = router;
